@@ -24,23 +24,18 @@ export const uTwistZ = uniform(0.35);
 
 const MAX_VELOCITY = 1.6;
 
-export const updateVelocityUniform = (lenisVelocity: number, alpha = 0.12) => {
+export function updateVelocityUniform(lenisVelocity: number, alpha = 0.12): void {
     const target = THREE.MathUtils.clamp(lenisVelocity * 0.011, -MAX_VELOCITY, MAX_VELOCITY);
     uVelocity.value = THREE.MathUtils.lerp(uVelocity.value, target, alpha);
-};
+}
 
-/**
- * Automatically adapts wave wavelength and 3D displacement across
- * mobile, tablet, and desktop screens so the visual ribbon wave remains
- * proportional on any viewport.
- */
-export const updateWaveDimensions = (stride: number, planeHeight: number) => {
+export function updateWaveDimensions(stride: number, planeHeight: number): void {
     const wavelength = stride * 1.82;
     uWaveFreq.value = (Math.PI * 2) / wavelength;
-    uAmpY.value = planeHeight * 0.27;
-    uAmpZ.value = planeHeight * 0.45;
+    uAmpY.value = planeHeight * 0.8;
+    uAmpZ.value = planeHeight * 0.8;
     uTwistZ.value = planeHeight * 0.20;
-};
+}
 
 const worldPos = modelWorldMatrix.mul(vec4(positionGeometry, 1.0));
 const worldX = worldPos.x;
@@ -57,12 +52,6 @@ const dispX = sinW.mul(cosW).mul(uVelocity).mul(-0.05);
 
 export const reelPositionNode = positionLocal.add(vec3(dispX, dynY, dynZ.add(twistZ)));
 
-/**
- * Refined Minimal Editorial Tone:
- * - All images share the same uniform, cohesive color tone.
- * - Subtly desaturated (0.80) so colors are tasteful, minimal, and aesthetic rather than harsh/oversaturated.
- * - Gentle, airy lift on dark tones for an elegant photographic finish.
- */
 export const createColorNode = (tex: THREE.Texture, planeAspect: number) => {
     const img = tex.image as { width: number; height: number };
     const imageAspect = (img && img.width && img.height) ? img.width / img.height : planeAspect;
@@ -75,20 +64,16 @@ export const createColorNode = (tex: THREE.Texture, planeAspect: number) => {
     const coverUv = uv().sub(0.5).mul(uniform(scale)).add(0.5);
     const baseColor = texture(tex, coverUv);
 
-    // Standard Rec. 709 luminance
     const luma = dot(baseColor.rgb, vec3(0.2126, 0.7152, 0.0722));
     const gray = vec3(luma);
 
-    // Uniform aesthetic saturation: a touch less saturated than original across all images
     const sat = float(0.80);
     const satColor = mix(gray, baseColor.rgb, sat);
 
-    // Minimal, light photographic tone mapping: soft lift on deep shadows, clean highlights
     const lift = float(0.018);
     const gain = float(1.02);
     const tonedRgb = satColor.mul(gain).add(vec3(lift));
 
-    // Delicate 3D highlight on wave crests
     const curveHighlight = clamp(cosW.mul(uVelocity).mul(0.05), 0.0, 0.06);
     const finalRgb = tonedRgb.add(vec3(curveHighlight));
 

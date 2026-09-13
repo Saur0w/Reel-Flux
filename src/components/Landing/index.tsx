@@ -29,7 +29,7 @@ export default function Landing() {
             <div className={styles.overlay}>
                 <header className={styles.header}>
                     <div className={styles.brand}>
-                        <span>Saurow</span>
+                        <span>SAUROW</span>
                     </div>
                     <span className={styles.crossMark}>+</span>
                 </header>

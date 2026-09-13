@@ -16,7 +16,7 @@ export default function Scene() {
                 await renderer.init();
                 return renderer;
             }}
-            flat // no tone-mapping on photos
+            flat
             camera={{ position: [0, 0, 5], fov: 48, near: 0.1, far: 100 }}
             dpr={[1, 2]}
         >
