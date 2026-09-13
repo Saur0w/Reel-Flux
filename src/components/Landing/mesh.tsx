@@ -11,13 +11,13 @@ import { updateVelocityUniform, createSliderMaterial } from "@/lib/Shader";
 useTexture.preload(imagePaths);
 
 const PLANE_ASPECT = 5 / 3;
-const GAP_RATIO = 0.01; // gap as a fraction of plane width
+const GAP_RATIO = 0.015; // Clean, elegant gap between cards
 
 function Meshes() {
     const textures = useTexture(imagePaths) as THREE.Texture[];
     const viewport = useThree((s) => s.viewport);
 
-    // Responsive sizing: plane height = 55% of the visible viewport height
+    // Responsive sizing: card height = 40% of visible viewport height
     const planeHeight = viewport.height * 0.35;
     const planeWidth = planeHeight * PLANE_ASPECT;
     const stride = planeWidth * (1 + GAP_RATIO);
@@ -25,9 +25,9 @@ function Meshes() {
     const totalWidth = total * stride;
     const half = totalWidth / 2;
 
-    // ONE geometry for every plane. Wave only varies along X → 64×1 segments.
+    // 64 segments along X for smooth wave curvature, 16 in Y for smooth 3D torsion
     const geometry = useMemo(
-        () => new THREE.PlaneGeometry(planeWidth, planeHeight, 64, 1),
+        () => new THREE.PlaneGeometry(planeWidth, planeHeight, 64, 16),
         [planeWidth, planeHeight]
     );
     useEffect(() => () => geometry.dispose(), [geometry]);

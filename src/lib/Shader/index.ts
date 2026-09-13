@@ -1,7 +1,7 @@
-
 import {
     sin,
-    vec2,
+    cos,
+    clamp,
     vec3,
     vec4,
     float,
@@ -14,32 +14,34 @@ import {
 } from "three/tsl";
 import * as THREE from "three/webgpu";
 
-/** Shared velocity uniform — one value drives every plane. */
 export const uVelocity = uniform(0);
 
-const MAX_VELOCITY = 1.2;
+const MAX_VELOCITY = 1.6;
 
-/** Lenis velocity is px/frame — normalise, clamp, then ease the uniform. */
 export const updateVelocityUniform = (lenisVelocity: number, alpha = 0.12) => {
-    const target = THREE.MathUtils.clamp(lenisVelocity * 0.01, -MAX_VELOCITY, MAX_VELOCITY);
+    const target = THREE.MathUtils.clamp(lenisVelocity * 0.011, -MAX_VELOCITY, MAX_VELOCITY);
     uVelocity.value = THREE.MathUtils.lerp(uVelocity.value, target, alpha);
 };
 
-/**
- * Reel wave — same math as the old GLSL but in *world* X, so all planes
- * ride one continuous wave. Built once and shared by every material.
- */
-const worldX = modelWorldMatrix.mul(vec4(positionGeometry, 1.0)).x;
-const wave = sin(worldX.mul(0.9)).mul(uVelocity).mul(0.5);
-export const reelPositionNode = positionLocal.add(vec3(float(0), wave, wave));
+const worldPos = modelWorldMatrix.mul(vec4(positionGeometry, 1.0));
+const worldX = worldPos.x;
+const localY = positionGeometry.y;
 
-/**
- * `object-fit: cover` UVs. The scale is a uniform (not a constant) so all
- * 20 materials compile to ONE shader program and only swap bindings.
- */
+const waveFreq = float(1.15);
+const wavePhase = worldX.mul(waveFreq);
+const sinW = sin(wavePhase);
+const cosW = cos(wavePhase);
+
+const dynY = sinW.mul(uVelocity).mul(1.48);
+const dynZ = cosW.mul(uVelocity).mul(1.4);
+const twistZ = localY.mul(sinW).mul(uVelocity).mul(0.25);
+const dispX = sinW.mul(cosW).mul(uVelocity).mul(-0.05);
+
+export const reelPositionNode = positionLocal.add(vec3(dispX, dynY, dynZ.add(twistZ)));
+
 export const createColorNode = (tex: THREE.Texture, planeAspect: number) => {
     const img = tex.image as { width: number; height: number };
-    const imageAspect = img.width / img.height;
+    const imageAspect = (img && img.width && img.height) ? img.width / img.height : planeAspect;
 
     const scale =
         imageAspect > planeAspect
@@ -47,12 +49,19 @@ export const createColorNode = (tex: THREE.Texture, planeAspect: number) => {
             : new THREE.Vector2(1, imageAspect / planeAspect);
 
     const coverUv = uv().sub(0.5).mul(uniform(scale)).add(0.5);
-    return texture(tex, coverUv);
+    const baseColor = texture(tex, coverUv);
+
+    const curvatureLight = float(2.0).add(cosW.mul(uVelocity).mul(0.014));
+    const lightFactor = clamp(curvatureLight, 0.88, 1.15);
+
+    const finalRgb = baseColor.rgb.mul(lightFactor);
+    return vec4(finalRgb, baseColor.a);
 };
 
 export function createSliderMaterial(tex: THREE.Texture, planeAspect: number) {
     const mat = new THREE.MeshBasicNodeMaterial();
     mat.positionNode = reelPositionNode;
     mat.colorNode = createColorNode(tex, planeAspect);
+    mat.side = THREE.DoubleSide;
     return mat;
 }

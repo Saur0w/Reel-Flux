@@ -16,7 +16,6 @@ export default function Landing() {
 
     return (
         <main ref={wrapperRef} className={styles.container}>
-            {/* Invisible spacer: gives Lenis a scroll range (one lap of the reel) */}
             <div
                 ref={contentRef}
                 className={styles.scrollContent}
