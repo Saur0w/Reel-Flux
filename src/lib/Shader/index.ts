@@ -17,6 +17,10 @@ import {
 import * as THREE from "three/webgpu";
 
 export const uVelocity = uniform(0);
+export const uWaveFreq = uniform(1.15);
+export const uAmpY = uniform(0.48);
+export const uAmpZ = uniform(0.80);
+export const uTwistZ = uniform(0.35);
 
 const MAX_VELOCITY = 1.6;
 
@@ -25,18 +29,30 @@ export const updateVelocityUniform = (lenisVelocity: number, alpha = 0.12) => {
     uVelocity.value = THREE.MathUtils.lerp(uVelocity.value, target, alpha);
 };
 
+/**
+ * Automatically adapts wave wavelength and 3D displacement across
+ * mobile, tablet, and desktop screens so the visual ribbon wave remains
+ * proportional on any viewport.
+ */
+export const updateWaveDimensions = (stride: number, planeHeight: number) => {
+    const wavelength = stride * 1.82;
+    uWaveFreq.value = (Math.PI * 2) / wavelength;
+    uAmpY.value = planeHeight * 0.27;
+    uAmpZ.value = planeHeight * 0.45;
+    uTwistZ.value = planeHeight * 0.20;
+};
+
 const worldPos = modelWorldMatrix.mul(vec4(positionGeometry, 1.0));
 const worldX = worldPos.x;
 const localY = positionGeometry.y;
 
-const waveFreq = float(1.15);
-const wavePhase = worldX.mul(waveFreq);
+const wavePhase = worldX.mul(uWaveFreq);
 const sinW = sin(wavePhase);
 const cosW = cos(wavePhase);
 
-const dynY = sinW.mul(uVelocity).mul(0.48);
-const dynZ = cosW.mul(uVelocity).mul(0.80);
-const twistZ = localY.mul(sinW).mul(uVelocity).mul(0.35);
+const dynY = sinW.mul(uVelocity).mul(uAmpY);
+const dynZ = cosW.mul(uVelocity).mul(uAmpZ);
+const twistZ = localY.mul(sinW).mul(uVelocity).mul(uTwistZ);
 const dispX = sinW.mul(cosW).mul(uVelocity).mul(-0.05);
 
 export const reelPositionNode = positionLocal.add(vec3(dispX, dynY, dynZ.add(twistZ)));
