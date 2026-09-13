@@ -1,43 +1,57 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import Lenis, { type ScrollCallback } from "lenis";
+import { useEffect, type RefObject } from "react";
+import Lenis from "lenis";
 
-export function useScroll() {
-    const scrollX = useRef(0);
-    const targetX = useRef(0);
-    const velocity = useRef(0);
+/**
+ * Tiny module store — the Canvas runs in its own React root, so this is the
+ * cheapest way to share scroll data between DOM (Lenis) and R3F (useFrame).
+ */
+export const scrollState = {
+    /** 0 → 1, wraps thanks to `infinite: true` */
+    progress: 0,
+    /** px per frame, signed */
+    velocity: 0,
+};
 
+/**
+ * Mounts Lenis on a wrapper/content pair. The content is just a tall spacer;
+ * Lenis handles wheel, touch, inertia, smoothing and infinite wrapping.
+ */
+export function useLenisScroll(
+    wrapperRef: RefObject<HTMLElement | null>,
+    contentRef: RefObject<HTMLElement | null>
+) {
     useEffect(() => {
+        const wrapper = wrapperRef.current;
+        const content = contentRef.current;
+        if (!wrapper || !content) return;
+
         const lenis = new Lenis({
-            orientation: "horizontal",
-            gestureOrientation: "both",
-            smoothWheel: true,
-            syncTouch: true
+            wrapper,
+            content,
+            infinite: true,
+            orientation: "vertical",
+            gestureOrientation: "both", // vertical wheel + horizontal trackpad
+            syncTouch: true,
+            lerp: 0.08,
+            wheelMultiplier: 1,
+            touchMultiplier: 1.5,
         });
 
-        lenis.on("scroll", ((e) => {
-            targetX.current += e.velocity * 0.005;
-        }) as ScrollCallback);
+        lenis.on("scroll", ({ progress, velocity }: Lenis) => {
+            scrollState.progress = progress;
+            scrollState.velocity = velocity;
+        });
 
-        const handleWheel = (e: WheelEvent) => {
-            const delta = e.deltaY || e.deltaX;
-            targetX.current += delta * 0.003;
-        };
-
-        window.addEventListener("wheel", handleWheel, { passive: true });
-
-        function raf(time: number) {
+        let raf = requestAnimationFrame(function loop(time) {
             lenis.raf(time);
-            requestAnimationFrame(raf);
-        }
-        const rafId = requestAnimationFrame(raf);
+            raf = requestAnimationFrame(loop);
+        });
 
         return () => {
-            cancelAnimationFrame(rafId);
-            window.removeEventListener("wheel", handleWheel);
+            cancelAnimationFrame(raf);
             lenis.destroy();
         };
-    }, []);
-    return { scrollX, targetX, velocity };
+    }, [wrapperRef, contentRef]);
 }
